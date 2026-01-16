@@ -166,7 +166,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Standalone: com.InfimaGames.LowPolyShooterPack
+    Standalone: com.DefaultCompany.The-Last-Dungeon
   buildNumber:
     Standalone: 0
     VisionOS: 0

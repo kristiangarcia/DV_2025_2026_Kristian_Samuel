@@ -1133,7 +1133,7 @@ PrefabInstance:
     - target: {fileID: 2236232980808212782, guid: ca307332735b944448e0fea722e15d06,
         type: 3}
       propertyPath: m_Name
-      value: P_LPSP_FP_CH
+      value: Personaje
       objectReference: {fileID: 0}
     - target: {fileID: 7222985817236411626, guid: ca307332735b944448e0fea722e15d06,
         type: 3}
