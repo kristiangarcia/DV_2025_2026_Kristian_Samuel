@@ -1,50 +1,68 @@
 using UnityEngine;
-using UnityEngine.AI; // Necesario para la Inteligencia Artificial
+using UnityEngine.AI;
 
 public class ZombieKamikaze : MonoBehaviour
 {
-    public Transform objetivo;         // Aquí arrastraremos a tu Jugador
-    public GameObject efectoExplosion; // Aquí pondremos el efecto visual (opcional)
+    [Header("Configuración Zombie")]
+    public Transform objetivo;
+    public float vida = 100f;
+    public float dañoExplosion = 30f;
+    public GameObject efectoExplosion;
     
     private NavMeshAgent agente;
 
     void Start()
     {
-        // Cogemos el componente NavMeshAgent automáticamente
         agente = GetComponent<NavMeshAgent>();
     }
 
     void Update()
     {
-        // Si el objetivo existe, le decimos al agente que vaya hacia él
         if (objetivo != null)
         {
             agente.SetDestination(objetivo.position);
         }
     }
 
-    void OnTriggerEnter(Collider other)
+    // ---------------------------------------------------------
+    // CAMBIO IMPORTANTE: USAMOS COLLISION ENTER (CHOQUE FÍSICO)
+    // ---------------------------------------------------------
+    void OnCollisionEnter(Collision collision)
     {
-        // Si entra en el trigger alguien con el Tag "Player"
-        if (other.CompareTag("Player"))
+        // SI CHOCO CONTRA EL JUGADOR -> EXPLOTO
+        if (collision.gameObject.CompareTag("Player"))
         {
-            Explotar();
+            ExplotarAtaque(collision.gameObject);
+        }
+        // Nota: Las balas no usan colisión física, usan el script de disparo,
+        // así que no necesitamos mirar "ProyectilBala" aquí si usas Raycast.
+    }
+
+    // Esta función la llama TU PISTOLA desde el script "SistemaDisparo"
+    public void RecibirDaño(float cantidad)
+    {
+        vida -= cantidad;
+        Debug.Log("Zombie herido. Vida: " + vida);
+
+        if (vida <= 0)
+        {
+            Destroy(gameObject);
         }
     }
 
-    void Explotar()
+    void ExplotarAtaque(GameObject jugador)
     {
-        // 1. Mostrar explosión (si tenemos una puesta)
         if (efectoExplosion != null)
         {
             Instantiate(efectoExplosion, transform.position, transform.rotation);
         }
 
-        // 2. Destruir al zombie
-        Destroy(gameObject);
+        VidaJugador vidaScript = jugador.GetComponent<VidaJugador>();
+        if (vidaScript != null)
+        {
+            vidaScript.RecibirDaño(dañoExplosion);
+        }
 
-        // ¡AQUÍ PODRÍAS RESTAR VIDA! 
-        // Por ejemplo: collision.gameObject.SendMessage("RecibirDaño", 50);
-        Debug.Log("¡BOOM! El zombie ha explotado contra el jugador.");
+        Destroy(gameObject);
     }
 }

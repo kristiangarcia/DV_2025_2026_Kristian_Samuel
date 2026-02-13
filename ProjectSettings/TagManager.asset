@@ -16,6 +16,7 @@ TagManager:
   - Wood (Static)
   - Dirt (Static)
   - Wood
+  - ProyectilBala
   layers:
   - Default
   - TransparentFX
