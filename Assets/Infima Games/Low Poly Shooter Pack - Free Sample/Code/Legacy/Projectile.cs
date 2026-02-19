@@ -45,6 +45,7 @@ public class Projectile : MonoBehaviour {
 		if (zombieN != null)
 		{
 			zombieN.RecibirDaño(34f);
+			EfectoSangre.Crear(collision.contacts[0].point, collision.contacts[0].normal);
 			Destroy(gameObject);
 			return;
 		}
@@ -52,6 +53,7 @@ public class Projectile : MonoBehaviour {
 		if (zombieK != null)
 		{
 			zombieK.RecibirDaño(34f);
+			EfectoSangre.Crear(collision.contacts[0].point, collision.contacts[0].normal);
 			Destroy(gameObject);
 			return;
 		}

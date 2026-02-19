@@ -4,66 +4,164 @@ using System.Collections;
 
 public class GeneradorHordas : MonoBehaviour
 {
-    [Header("Configuración de la Horda")]
-    public GameObject prefabZombie;       
-    public Transform jugador;             
-    public int maxZombiesEnMapa = 30;     
-    public float tiempoEntreSpawns = 0.5f; 
+    [Header("Prefabs de Zombies")]
+    public GameObject prefabZombie;           // Zombie normal
+    public GameObject prefabZombieKamikaze;   // Zombie kamikaze (desde ronda 5)
+    public Transform jugador;
+
+    [Header("Configuración de Rondas")]
+    public int zombiesRondaInicial = 5;       // Zombies en la ronda 1
+    public int zombiesExtraPorRonda = 3;      // Cuántos más por cada ronda
+    public float tiempoEntreSpawns = 0.5f;
 
     [Header("Área de Búsqueda")]
-    public float radioDelMapa = 50f;      
+    public float radioDelMapa = 50f;
+
+    // Estado interno
+    private int rondaActual = 0;
+    private int zombiesSpawneados = 0;
+    private int zombiesRestantes = 0;
+    private bool rondaEnCurso = false;
+    private bool esperandoEntreRondas = false;
+    private float vidaExtraZombie = 0f;
 
     void Start()
     {
-        StartCoroutine(GenerarZombies());
+        // Añadir componentes de UI si no existen
+        if (FindFirstObjectByType<PantallaRonda>() == null)
+            gameObject.AddComponent<PantallaRonda>();
+        if (FindFirstObjectByType<HUDRonda>() == null)
+            gameObject.AddComponent<HUDRonda>();
+        if (FindFirstObjectByType<PantallaPausa>() == null)
+            gameObject.AddComponent<PantallaPausa>();
+
+        // Iniciar la primera ronda tras 2 segundos
+        StartCoroutine(IniciarPrimeraRonda());
     }
 
-    IEnumerator GenerarZombies()
+    IEnumerator IniciarPrimeraRonda()
     {
-        while (true)
+        yield return new WaitForSeconds(2f);
+        IniciarRonda();
+    }
+
+    void IniciarRonda()
+    {
+        rondaActual++;
+        int totalZombies = zombiesRondaInicial + (rondaActual - 1) * zombiesExtraPorRonda;
+        zombiesSpawneados = 0;
+        zombiesRestantes = totalZombies;
+        rondaEnCurso = true;
+        esperandoEntreRondas = false;
+
+        // Incrementar vida extra de zombies (5 HP extra por ronda, empezando en ronda 2)
+        vidaExtraZombie = (rondaActual - 1) * 5f;
+
+        // Actualizar HUD con número de ronda
+        if (HUDRonda.Instancia != null)
+            HUDRonda.Instancia.ActualizarRonda(rondaActual);
+
+        Debug.Log("[RONDA " + rondaActual + "] Empieza con " + totalZombies + " zombies. Vida extra: +" + vidaExtraZombie);
+
+        StartCoroutine(SpawnearZombiesRonda(totalZombies));
+    }
+
+    IEnumerator SpawnearZombiesRonda(int total)
+    {
+        while (zombiesSpawneados < total)
         {
-            GameObject[] zombiesVivos = GameObject.FindGameObjectsWithTag("Zombie");
+            Vector2 puntoPlano = Random.insideUnitCircle * radioDelMapa;
+            Vector3 puntoAleatorio = transform.position + new Vector3(puntoPlano.x, 0, puntoPlano.y);
 
-            if (zombiesVivos.Length < maxZombiesEnMapa)
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(puntoAleatorio, out hit, 10f, NavMesh.AllAreas))
             {
-                // Buscamos un punto aleatorio dentro del círculo
-                Vector2 puntoPlano = Random.insideUnitCircle * radioDelMapa;
-                Vector3 puntoAleatorio = transform.position + new Vector3(puntoPlano.x, 0, puntoPlano.y);
-                
-                NavMeshHit hit;
-                
-                // Si encontramos suelo azul EXACTO...
-                if (NavMesh.SamplePosition(puntoAleatorio, out hit, 10f, NavMesh.AllAreas))
+                // Decidir qué tipo de zombie spawnear
+                bool esKamikaze = false;
+                if (rondaActual >= 5 && prefabZombieKamikaze != null)
                 {
-                    // 1. Creamos el zombie un poco más arriba para evitar choques con el suelo al nacer
-                    Vector3 posicionSegura = hit.position + Vector3.up; 
-                    GameObject nuevoZombie = Instantiate(prefabZombie, posicionSegura, Quaternion.identity);
+                    // Probabilidad de kamikaze: 20% en ronda 5, +5% por ronda
+                    float probKamikaze = 0.20f + (rondaActual - 5) * 0.05f;
+                    probKamikaze = Mathf.Min(probKamikaze, 0.5f); // Máximo 50%
+                    esKamikaze = Random.value < probKamikaze;
+                }
 
-                    // 2. FORZAMOS al NavMeshAgent a pegarse al suelo azul (Esto evita las estatuas y tirones)
-                    NavMeshAgent agente = nuevoZombie.GetComponent<NavMeshAgent>();
-                    if (agente != null)
+                GameObject prefab = esKamikaze ? prefabZombieKamikaze : prefabZombie;
+                Vector3 posicionSegura = hit.position + Vector3.up;
+                GameObject nuevoZombie = Instantiate(prefab, posicionSegura, Quaternion.identity);
+
+                // Forzar NavMesh
+                NavMeshAgent agente = nuevoZombie.GetComponent<NavMeshAgent>();
+                if (agente != null)
+                    agente.Warp(hit.position);
+
+                // Configurar objetivo y vida extra
+                if (esKamikaze)
+                {
+                    ZombieKamikaze scriptK = nuevoZombie.GetComponent<ZombieKamikaze>();
+                    if (scriptK != null)
                     {
-                        agente.Warp(hit.position);
+                        scriptK.objetivo = jugador;
+                        scriptK.vida += vidaExtraZombie;
                     }
-
-                    // 3. Le damos la orden de atacar
-                    ZombieNormal scriptZombie = nuevoZombie.GetComponent<ZombieNormal>();
-                    if (scriptZombie != null)
-                    {
-                        scriptZombie.objetivo = jugador;
-                    }
-
-                    yield return new WaitForSeconds(tiempoEntreSpawns);
                 }
                 else
                 {
-                    yield return null; 
+                    ZombieNormal scriptN = nuevoZombie.GetComponent<ZombieNormal>();
+                    if (scriptN != null)
+                    {
+                        scriptN.objetivo = jugador;
+                        scriptN.vida += vidaExtraZombie;
+                    }
                 }
+
+                zombiesSpawneados++;
+                yield return new WaitForSeconds(tiempoEntreSpawns);
             }
             else
             {
-                yield return new WaitForSeconds(1f);
+                yield return null;
             }
         }
+    }
+
+    void Update()
+    {
+        if (!rondaEnCurso || esperandoEntreRondas) return;
+
+        // Comprobar si todos los zombies han muerto
+        // Solo comprobar si ya hemos spawneado todos
+        int totalRonda = zombiesRondaInicial + (rondaActual - 1) * zombiesExtraPorRonda;
+        if (zombiesSpawneados >= totalRonda)
+        {
+            GameObject[] zombiesVivos = GameObject.FindGameObjectsWithTag("Zombie");
+
+            if (zombiesVivos.Length == 0)
+            {
+                // ¡Ronda completada!
+                rondaEnCurso = false;
+                esperandoEntreRondas = true;
+                MostrarPantallaRonda();
+            }
+        }
+    }
+
+    void MostrarPantallaRonda()
+    {
+        Debug.Log("[RONDA " + rondaActual + " COMPLETADA]");
+
+        PantallaRonda pantalla = FindFirstObjectByType<PantallaRonda>();
+        if (pantalla == null)
+        {
+            GameObject obj = new GameObject("PantallaRonda");
+            pantalla = obj.AddComponent<PantallaRonda>();
+        }
+
+        // Mostrar pantalla de la SIGUIENTE ronda
+        pantalla.MostrarRonda(rondaActual + 1, () =>
+        {
+            // Callback: cuando termine la animación, iniciar siguiente ronda
+            IniciarRonda();
+        });
     }
 }

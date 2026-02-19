@@ -114,12 +114,8 @@ public class ControlJugador : MonoBehaviour{
     }
 
     void SalirJuego(){
-        //Usamos pragmas (directivas)
-        #if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false; // Si estamos en el editor de Unity, deja de reproducir
-        #else
-            Application.Quit();// Si es el juego real (.exe), cierra la aplicación
-        #endif
+        // La pantalla de pausa (PantallaPausa.cs) maneja ESC ahora
+        // Se deja vacío para no cerrar el juego al pulsar ESC
     }
 
     void LockCursor(){

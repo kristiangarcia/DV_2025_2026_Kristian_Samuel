@@ -68,6 +68,8 @@ public class SistemaDisparo : MonoBehaviour
             if (zombieK != null)
             {
                 zombieK.RecibirDaño(dañoArma);
+                Vector3 puntoZombie = hit.collider.ClosestPoint(origen);
+                EfectoSangre.Crear(puntoZombie, (puntoZombie - origen).normalized);
                 return;
             }
 
@@ -76,6 +78,8 @@ public class SistemaDisparo : MonoBehaviour
             if (zombieN != null)
             {
                 zombieN.RecibirDaño(dañoArma);
+                Vector3 puntoZombie = hit.collider.ClosestPoint(origen);
+                EfectoSangre.Crear(puntoZombie, (puntoZombie - origen).normalized);
                 return;
             }
 
@@ -85,8 +89,8 @@ public class SistemaDisparo : MonoBehaviour
                 // Intentar destruir directamente
                 ZombieNormal zn = hit.transform.root.GetComponent<ZombieNormal>();
                 ZombieKamikaze zk = hit.transform.root.GetComponent<ZombieKamikaze>();
-                if (zn != null) { zn.RecibirDaño(dañoArma); return; }
-                if (zk != null) { zk.RecibirDaño(dañoArma); return; }
+                if (zn != null) { zn.RecibirDaño(dañoArma); EfectoSangre.Crear(hit.transform.position + Vector3.up, direccion); return; }
+                if (zk != null) { zk.RecibirDaño(dañoArma); EfectoSangre.Crear(hit.transform.position + Vector3.up, direccion); return; }
                 // Si todo falla, destruir el objeto
                 Destroy(hit.transform.root.gameObject);
                 return;
