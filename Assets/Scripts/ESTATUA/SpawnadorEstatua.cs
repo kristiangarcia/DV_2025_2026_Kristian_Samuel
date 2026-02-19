@@ -103,7 +103,16 @@ public class SpawnadorEstatua : MonoBehaviour
             bc.size   = new Vector3(0.8f, 1.8f, 0.8f);
         }
 
-        // ── StatueAgent PRIMERO (para que DecisionRequester no duplique Agent) ──
+        // ── BehaviorParameters PRIMERO: debe existir antes de que Agent.Awake() se ejecute ──
+        var bp = estatuaActual.AddComponent<BehaviorParameters>();
+        bp.BehaviorName = "StatueAgent";
+        bp.BrainParameters.VectorObservationSize        = 12;
+        bp.BrainParameters.NumStackedVectorObservations = 1;
+        bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(2);
+        bp.Model        = modeloEstatua;
+        bp.BehaviorType = BehaviorType.InferenceOnly;
+
+        // ── StatueAgent DESPUÉS: Agent.Awake() encontrará el BehaviorParameters ya configurado ──
         var agente = estatuaActual.AddComponent<StatueAgent>();
         agente.jugador          = jugador;
         agente.camaraJugador    = camaraJugador;
@@ -114,16 +123,7 @@ public class SpawnadorEstatua : MonoBehaviour
         agente.mostrarGizmos    = false;
         agente.activarLogs      = false;
 
-        // ── BehaviorParameters (auto-creado por Agent, solo configurar) ──
-        var bp = estatuaActual.GetComponent<BehaviorParameters>();
-        bp.BehaviorName = "StatueAgent";
-        bp.BrainParameters.VectorObservationSize        = 12;
-        bp.BrainParameters.NumStackedVectorObservations = 1;
-        bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(2);
-        bp.Model        = modeloEstatua;
-        bp.BehaviorType = BehaviorType.InferenceOnly;
-
-        // ── DecisionRequester DESPUÉS de StatueAgent ──
+        // ── DecisionRequester al final ──
         var dr = estatuaActual.AddComponent<DecisionRequester>();
         dr.DecisionPeriod = 5;
 
