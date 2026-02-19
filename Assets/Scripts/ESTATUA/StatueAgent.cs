@@ -90,6 +90,10 @@ public class StatueAgent : Agent
     private Vector3 posicionPrevia;
     private Vector3 velocidadActual = Vector3.zero;
 
+    // Cache del componente de vida del jugador (se busca una sola vez)
+    private VidaJugador vidaJugador;
+    private bool yaAtacó = false;  // Evita llamar RecibirDaño varias veces seguidas
+
     // ════════════════════════════════════════════════════════════════════════════
     // 1. INICIALIZACIÓN – Se ejecuta UNA VEZ al pulsar Play
     // ════════════════════════════════════════════════════════════════════════════
@@ -99,6 +103,10 @@ public class StatueAgent : Agent
         // En inference (modelo cargado) corre a velocidad normal.
         bool entrenando = Academy.Instance.IsCommunicatorOn;
         Time.timeScale = entrenando ? 20f : 1f;
+
+        // Cachear VidaJugador para usarlo en EXEC sin buscar cada frame
+        if (jugador != null)
+            vidaJugador = jugador.GetComponent<VidaJugador>();
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -255,10 +263,22 @@ public class StatueAgent : Agent
         // ─── Condiciones de fin de episodio ───────────────────────────────────
         if (distanciaActual <= distanciaExito)
         {
-            // En EXEC (MaxStep=0) NO reseteamos: GestorPartidaEstatua muestra el overlay
-            // y la estatua sigue persiguiendo sin teletransportarse.
             if (MaxStep > 0)
+            {
+                // ENTRENAMIENTO: terminar episodio con recompensa positiva
                 finalizaEpisodio("¡ALCANZÓ al jugador!", 5.0f, true);
+            }
+            else if (!yaAtacó)
+            {
+                // EXEC: matar al jugador una sola vez
+                yaAtacó = true;
+                if (vidaJugador != null)
+                    vidaJugador.RecibirDaño(vidaJugador.vidaMaxima);
+            }
+        }
+        else
+        {
+            yaAtacó = false;  // Resetear si el jugador se aleja (por si revive o algo)
         }
 
         if (distanciaActual > distanciaMaxima)
