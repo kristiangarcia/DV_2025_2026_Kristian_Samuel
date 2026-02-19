@@ -52,7 +52,17 @@ public class SpawnadorEstatua : MonoBehaviour
     {
         if (rondaActual < rondaInicio) return;
         if (estatuaActual != null) return;   // Ya vive una estatua
-        if (prefabEstatua == null || modeloEstatua == null) return;
+
+        if (prefabEstatua == null)
+        {
+            Debug.LogWarning("[Estatua] prefabEstatua no asignado en el Inspector.");
+            return;
+        }
+        if (modeloEstatua == null)
+        {
+            Debug.LogWarning("[Estatua] modeloEstatua (.onnx) no asignado en el Inspector.");
+            return;
+        }
 
         // Resolver camaraJugador si no está asignada en el Inspector
         if (camaraJugador == null)
@@ -61,16 +71,25 @@ public class SpawnadorEstatua : MonoBehaviour
             if (camGO != null) camaraJugador = camGO.transform;
         }
 
-        if (jugador == null || camaraJugador == null)
+        if (jugador == null)
         {
-            Debug.LogWarning("[Estatua] Faltan referencias (jugador/cámara). No se spawnea.");
+            Debug.LogWarning("[Estatua] jugador no asignado en el Inspector.");
+            return;
+        }
+        if (camaraJugador == null)
+        {
+            Debug.LogWarning("[Estatua] camaraJugador no encontrada (asígnala o etiqueta la cámara como MainCamera).");
             return;
         }
 
-        // Posición: detrás del jugador a distanciaSpawn
-        Vector3 dir    = -jugador.forward;
+        // Posición: detrás del jugador a distanciaSpawn, a la misma altura que el jugador
+        Vector3 dir      = -jugador.forward;
         Vector3 spawnPos = jugador.position + dir * distanciaSpawn;
-        spawnPos.y = 0.5f;
+        // Raycast hacia abajo para apoyarla en el suelo real de la escena
+        if (Physics.Raycast(spawnPos + Vector3.up * 10f, Vector3.down, out RaycastHit groundHit, 20f))
+            spawnPos.y = groundHit.point.y;
+        else
+            spawnPos.y = jugador.position.y;
 
         // Instanciar el prefab visual
         estatuaActual = Instantiate(prefabEstatua, spawnPos, Quaternion.identity);
