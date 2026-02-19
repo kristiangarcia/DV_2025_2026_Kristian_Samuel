@@ -17,6 +17,8 @@ TagManager:
   - Dirt (Static)
   - Wood
   - ProyectilBala
+  - Obstaculos
+  - Zombie
   layers:
   - Default
   - TransparentFX
