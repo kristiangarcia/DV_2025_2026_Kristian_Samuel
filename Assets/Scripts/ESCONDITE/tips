@@ -1,0 +1,23 @@
+El agente debe aprender a:
+
+Romper la línea de visión
+
+Quedarse quieto cuando ya está oculto
+
+Moverse solo si es visible
+
+Usar objetos como cobertura
+
+Jugador visible     → penalización
+Jugador NO visible  → recompensa pequeña constante
+
+Visible → Oculto    → recompensa grande
+Oculto → Visible    → penalización
+
+
+Moverse estando oculto → penalización
+
+
+Si dos comportamientos producen la misma reward, el agente no los distinguirá.
+Hay que hacer que huir y esconderse tengan rewards distintas.
+
