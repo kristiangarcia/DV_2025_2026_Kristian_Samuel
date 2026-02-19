@@ -8,11 +8,11 @@ using Unity.Barracuda;
  * CLASE SPAWNADORESTATUA
  *
  * Gestiona la aparición de la Estatua Acechadora en la escena principal.
- * Se llama desde GeneradorHordas al inicio de cada ronda.
+ * Se llama desde GeneradorHordas al inicio y fin de cada ronda.
  *
- * - A partir de rondaInicio (por defecto 3), spawnea UNA estatua.
- * - La estatua persiste entre rondas (no se destruye al terminar la horda).
- * - Si la estatua ya existe no se crea otra.
+ * - A partir de rondaInicio, spawnea UNA estatua cada cadaRondas rondas.
+ * - La estatua desaparece al terminar la ronda y reaparece según el intervalo.
+ * - Ejemplo con rondaInicio=1 y cadaRondas=3: aparece en rondas 1, 4, 7, 10...
  *
  * Añadir este componente al mismo GameObject que GeneradorHordas
  * y asignar los campos en el Inspector.
@@ -34,8 +34,11 @@ public class SpawnadorEstatua : MonoBehaviour
     public Transform camaraJugador;
 
     [Header("Configuración")]
-    [Tooltip("Ronda a partir de la cual aparece la estatua.")]
+    [Tooltip("Ronda a partir de la cual aparece la estatua por primera vez.")]
     public int rondaInicio = 3;
+
+    [Tooltip("Cada cuántas rondas reaparece la estatua (1 = todas las rondas).")]
+    public int cadaRondas = 3;
 
     [Tooltip("Distancia desde el jugador a la que aparece la estatua.")]
     public float distanciaSpawn = 15f;
@@ -51,7 +54,9 @@ public class SpawnadorEstatua : MonoBehaviour
     public void ComprobarSpawn(int rondaActual)
     {
         if (rondaActual < rondaInicio) return;
-        if (estatuaActual != null) return;   // Ya vive una estatua
+        // Solo spawnea en las rondas del intervalo: rondaInicio, rondaInicio+cadaRondas, ...
+        if ((rondaActual - rondaInicio) % cadaRondas != 0) return;
+        if (estatuaActual != null) return;   // Ya vive una estatua (no debería ocurrir)
 
         if (prefabEstatua == null)
         {
@@ -94,7 +99,7 @@ public class SpawnadorEstatua : MonoBehaviour
         // Instanciar el prefab visual
         estatuaActual = Instantiate(prefabEstatua, spawnPos, Quaternion.identity);
         estatuaActual.name = "Estatua_Agent";
-        estatuaActual.transform.localScale = Vector3.one * 0.3f;
+        estatuaActual.transform.localScale = Vector3.one * 0.15f;
 
         // Añadir BoxCollider si el prefab no trae ninguno en el root
         if (estatuaActual.GetComponent<Collider>() == null)
@@ -129,5 +134,17 @@ public class SpawnadorEstatua : MonoBehaviour
         dr.DecisionPeriod = 5;
 
         Debug.Log($"[Ronda {rondaActual}] Estatua Acechadora spawneada en {spawnPos}");
+    }
+
+    /// <summary>
+    /// Llamado por GeneradorHordas al completar una ronda.
+    /// Destruye la estatua para que pueda reaparecer según el intervalo configurado.
+    /// </summary>
+    public void EliminarEstatua()
+    {
+        if (estatuaActual == null) return;
+        Destroy(estatuaActual);
+        estatuaActual = null;
+        Debug.Log("[Estatua] Estatua eliminada al terminar la ronda.");
     }
 }

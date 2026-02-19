@@ -158,6 +158,10 @@ public class GeneradorHordas : MonoBehaviour
     {
         Debug.Log("[RONDA " + rondaActual + " COMPLETADA]");
 
+        // Eliminar la estatua al terminar la ronda (reaparecerá según el intervalo)
+        if (spawnadorEstatua != null)
+            spawnadorEstatua.EliminarEstatua();
+
         PantallaRonda pantalla = FindFirstObjectByType<PantallaRonda>();
         if (pantalla == null)
         {
