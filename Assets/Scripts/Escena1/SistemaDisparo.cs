@@ -1,51 +1,96 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public class SistemaDisparo : MonoBehaviour
 {
-    public float dañoArma = 35f;
+    public float dañoArma = 100f;
     public float rango = 100f;
+    public float radioDisparo = 0.5f; // Grosor del rayo (SphereCast)
     public Camera camaraFPS;
-    public LayerMask capasAfectadas; // Asegúrate de que esto incluye "Default"
+
+    private HashSet<Collider> collidersIgnorados;
+
+    void Start()
+    {
+        collidersIgnorados = new HashSet<Collider>();
+        Transform raiz = transform.root;
+        foreach (Collider col in raiz.GetComponentsInChildren<Collider>(true))
+            collidersIgnorados.Add(col);
+
+        // Buscar la cámara FPS desde ControlJugador
+        if (camaraFPS == null)
+        {
+            ControlJugador control = FindFirstObjectByType<ControlJugador>();
+            if (control != null)
+            {
+                if (control.fpsCamera != null)
+                    camaraFPS = control.fpsCamera;
+
+                foreach (Collider c in control.transform.root.GetComponentsInChildren<Collider>(true))
+                    collidersIgnorados.Add(c);
+            }
+        }
+
+        if (dañoArma < 100f) dañoArma = 100f;
+    }
 
     void Update()
     {
-        if (Input.GetButtonDown("Fire1"))
-        {
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             Disparar();
-        }
     }
 
     void Disparar()
     {
-        RaycastHit hit;
+        if (camaraFPS == null) return;
 
-        // DIBUJA EL RAYO ROJO EN LA ESCENA (Visible en la pestaña Scene)
-        Debug.DrawRay(camaraFPS.transform.position, camaraFPS.transform.forward * rango, Color.red, 2.0f);
+        Vector3 origen = camaraFPS.transform.position;
+        Vector3 direccion = camaraFPS.transform.forward;
 
-        // Lanzamos el rayo
-        if (Physics.Raycast(camaraFPS.transform.position, camaraFPS.transform.forward, out hit, rango, capasAfectadas))
+        Debug.DrawRay(origen, direccion * rango, Color.red, 1.0f);
+
+        // SphereCastAll: rayo GORDO que detecta con más facilidad
+        RaycastHit[] hits = Physics.SphereCastAll(origen, radioDisparo, direccion, rango, ~0, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+        foreach (RaycastHit hit in hits)
         {
-            // --- DIAGNÓSTICO CLAVE ---
-            Debug.Log("1. HE GOLPEADO A: " + hit.transform.name);
-            Debug.Log("2. CAPA DEL OBJETO: " + LayerMask.LayerToName(hit.transform.gameObject.layer));
+            if (collidersIgnorados.Contains(hit.collider))
+                continue;
 
-            // Buscamos el script en el objeto golpeado O EN SUS PADRES
-            ZombieKamikaze zombie = hit.transform.GetComponentInParent<ZombieKamikaze>();
+            if (hit.distance < 1.0f)
+                continue;
 
-            if (zombie != null)
+            // Buscar zombie por componente (padre e hijos)
+            ZombieKamikaze zombieK = hit.transform.GetComponentInParent<ZombieKamikaze>();
+            if (zombieK == null) zombieK = hit.transform.GetComponentInChildren<ZombieKamikaze>();
+            if (zombieK != null)
             {
-                zombie.RecibirDaño(dañoArma);
-                Debug.Log(">>> ¡ÉXITO! Script encontrado. Vida restada.");
+                zombieK.RecibirDaño(dañoArma);
+                return;
             }
-            else
+
+            ZombieNormal zombieN = hit.transform.GetComponentInParent<ZombieNormal>();
+            if (zombieN == null) zombieN = hit.transform.GetComponentInChildren<ZombieNormal>();
+            if (zombieN != null)
             {
-                // Si sale esto, aquí está el problema
-                Debug.LogError(">>> ERROR: He golpeado al objeto, pero NO encuentro el script 'ZombieKamikaze' en él ni en sus padres.");
+                zombieN.RecibirDaño(dañoArma);
+                return;
             }
-        }
-        else
-        {
-            Debug.Log("--- TIRO FALLIDO: El Raycast no ha tocado nada ---");
+
+            // Buscar zombie por tag como último recurso
+            if (hit.transform.root.CompareTag("Zombie"))
+            {
+                // Intentar destruir directamente
+                ZombieNormal zn = hit.transform.root.GetComponent<ZombieNormal>();
+                ZombieKamikaze zk = hit.transform.root.GetComponent<ZombieKamikaze>();
+                if (zn != null) { zn.RecibirDaño(dañoArma); return; }
+                if (zk != null) { zk.RecibirDaño(dañoArma); return; }
+                // Si todo falla, destruir el objeto
+                Destroy(hit.transform.root.gameObject);
+                return;
+            }
         }
     }
 }

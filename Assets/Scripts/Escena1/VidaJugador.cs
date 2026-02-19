@@ -7,8 +7,8 @@ public class VidaJugador : MonoBehaviour
     [Header("Configuración de Vida")]
     public float vidaMaxima = 100f;
     public float vidaActual;
-    public float velocidadRegeneracion = 15f; // Cuánta vida recuperas por segundo
-    public float tiempoParaEmpezarACurarse = 3f; // Segundos sin recibir daño para curarte
+    public float velocidadRegeneracion = 5f; // Cuánta vida recuperas por segundo
+    public float tiempoParaEmpezarACurarse = 5f; // Segundos sin recibir daño para curarte
 
     [Header("Efectos Visuales")]
     public Image pantallaSangre; // Arrastra aquí tu imagen roja "PantallaSangre"
@@ -45,9 +45,27 @@ public class VidaJugador : MonoBehaviour
         // Comprobar muerte
         if (vidaActual <= 0)
         {
-            // Reiniciar nivel
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            vidaActual = 0;
+            Morir();
         }
+    }
+
+    void Morir()
+    {
+        // Mostrar pantalla de Game Over
+        PantallaGameOver gameOver = PantallaGameOver.Instancia;
+        if (gameOver == null)
+        {
+            // Si no existe, crear uno automáticamente
+            GameObject goObj = new GameObject("PantallaGameOver");
+            gameOver = goObj.AddComponent<PantallaGameOver>();
+        }
+        gameOver.MostrarGameOver();
+
+        // Desactivar controles del jugador
+        var control = GetComponent<ControlJugador>();
+        if (control != null) control.enabled = false;
+        this.enabled = false;
     }
 
     void ActualizarEfectosVisuales()

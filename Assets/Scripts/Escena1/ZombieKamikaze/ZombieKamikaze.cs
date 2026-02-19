@@ -6,7 +6,7 @@ public class ZombieKamikaze : MonoBehaviour
     [Header("Configuración Zombie")]
     public Transform objetivo;
     public float vida = 100f;
-    public float dañoExplosion = 30f;
+    public float dañoExplosion = 50f;
     public GameObject efectoExplosion;
     
     private NavMeshAgent agente;

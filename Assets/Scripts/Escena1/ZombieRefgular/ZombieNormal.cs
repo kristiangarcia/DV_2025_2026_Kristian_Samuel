@@ -6,7 +6,7 @@ public class ZombieNormal : MonoBehaviour
     [Header("Configuración")]
     public Transform objetivo;       // El jugador
     public float vida = 100f;
-    public float dañoAtaque = 10f;   // Daño por cada golpe/mordisco
+    public float dañoAtaque = 20f;   // Daño por cada golpe/mordisco
     public float velocidadAtaque = 1f; // Segundos entre cada golpe
 
     private NavMeshAgent agente;

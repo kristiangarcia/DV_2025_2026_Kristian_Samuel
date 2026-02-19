@@ -30777,6 +30777,12 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1779021080}
   m_PrefabAsset: {fileID: 0}
+--- !u!20 &913061638 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 915487220368312904, guid: ca307332735b944448e0fea722e15d06,
+    type: 3}
+  m_PrefabInstance: {fileID: 1022880395}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &913354068
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -39709,10 +39715,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.0024376162
+  m_Radius: 0.0012036519
   m_Height: 0.005845329
   m_Direction: 1
-  m_Center: {x: 0.00004318612, y: -0.001936606, z: 0.000017237877}
+  m_Center: {x: 0.0000020517834, y: -0.001936606, z: 0.000017237877}
 --- !u!4 &1162974925 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5625538354094248084, guid: d5894ac112f412445a867032235ce9fd,
@@ -54099,10 +54105,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SistemaDisparo
   "da\xF1oArma": 25
   rango: 100
-  camaraFPS: {fileID: 843045478}
-  capasAfectadas:
-    serializedVersion: 2
-    m_Bits: 4294967295
+  camaraFPS: {fileID: 913061638}
 --- !u!1001 &1649938066
 PrefabInstance:
   m_ObjectHideFlags: 0
