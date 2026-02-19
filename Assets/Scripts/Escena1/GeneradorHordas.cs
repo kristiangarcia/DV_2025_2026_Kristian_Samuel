@@ -9,6 +9,10 @@ public class GeneradorHordas : MonoBehaviour
     public GameObject prefabZombieKamikaze;   // Zombie kamikaze (desde ronda 5)
     public Transform jugador;
 
+    [Header("Estatua Acechadora")]
+    [Tooltip("(Opcional) Asignar para activar la estatua ML-Agent a partir de la ronda configurada.")]
+    public SpawnadorEstatua spawnadorEstatua;
+
     [Header("Configuración de Rondas")]
     public int zombiesRondaInicial = 5;       // Zombies en la ronda 1
     public int zombiesExtraPorRonda = 3;      // Cuántos más por cada ronda
@@ -62,6 +66,10 @@ public class GeneradorHordas : MonoBehaviour
             HUDRonda.Instancia.ActualizarRonda(rondaActual);
 
         Debug.Log("[RONDA " + rondaActual + "] Empieza con " + totalZombies + " zombies. Vida extra: +" + vidaExtraZombie);
+
+        // Estatua Acechadora: aparece a partir de la ronda configurada
+        if (spawnadorEstatua != null)
+            spawnadorEstatua.ComprobarSpawn(rondaActual);
 
         StartCoroutine(SpawnearZombiesRonda(totalZombies));
     }
