@@ -1002,7 +1002,7 @@ Animator:
   m_GameObject: {fileID: 8257477690211482390}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 3d201f6fc60c540ff824a1f3a4b270a8, type: 3}
-  m_Controller: {fileID: 9100000, guid: 60738c65dd97e4b54bdbd770c6439ad2, type: 2}
+  m_Controller: {fileID: 9100000, guid: 2fa124f714d394757b0ba65161d0329a, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -1051,8 +1051,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ZombieNormal
   objetivo: {fileID: 0}
   vida: 100
+  vidaMaxima: 100
   "da\xF1oAtaque": 10
   velocidadAtaque: 1
+  distanciaAtaque: 2.5
 --- !u!195 &8604328817555023116
 NavMeshAgent:
   m_ObjectHideFlags: 0
