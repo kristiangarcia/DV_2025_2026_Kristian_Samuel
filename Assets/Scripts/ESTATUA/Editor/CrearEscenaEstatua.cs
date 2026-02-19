@@ -4,6 +4,7 @@ using UnityEditor.SceneManagement;
 using Unity.MLAgents;
 using Unity.MLAgents.Policies;
 using Unity.MLAgents.Actuators;
+using Unity.Barracuda;
 
 /** DAV - 2ºDAM
  * EDITOR SCRIPT: CrearEscenaEstatua
@@ -141,32 +142,37 @@ public static class CrearEscenaEstatua
         bc.center = new Vector3(0f, 0.9f, 0f);
         bc.size   = new Vector3(0.8f, 1.8f, 0.8f);
 
+        // ── StatueAgent PRIMERO para que DecisionRequester no añada un Agent base extra
+        // (DecisionRequester tiene [RequireComponent(typeof(Agent))]; si StatueAgent ya
+        //  existe, Unity lo reconoce como Agent válido y no duplica el componente)
+        var agente = estGO.AddComponent<StatueAgent>();
+        agente.jugador          = tpGO.transform;
+        agente.camaraJugador    = camPt.transform;
+        agente.targetPlayerCtrl = tpComp;
+        agente.MaxStep          = 5000;
+        agente.mostrarGizmos    = principal;
+        agente.activarLogs      = principal;
+        EditorUtility.SetDirty(agente);
+
         // ── BehaviorParameters (ML-Agents 2.0.2) ──────────────────────────────
+        // StatueAgent hereda de Agent, que tiene [RequireComponent(typeof(BehaviorParameters))].
+        // Unity ya añadió uno automáticamente al hacer AddComponent<StatueAgent>().
+        // Usamos GetComponent para configurar ese mismo y no crear un duplicado.
         // Space Size = 7: posición relativa (3) + siendoVista (1) + forward cámara (3)
         // Continuous Actions = 2: moveX, moveZ
-        var bp = estGO.AddComponent<BehaviorParameters>();
+        var bp = estGO.GetComponent<BehaviorParameters>();
         bp.BehaviorName = "StatueAgent";
-        bp.BrainParameters.VectorObservationSize        = 7;
+        bp.BrainParameters.VectorObservationSize        = 12;
         bp.BrainParameters.NumStackedVectorObservations = 1;
         bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(2);
         EditorUtility.SetDirty(bp);
 
         // ── DecisionRequester ─────────────────────────────────────────────────
         // Period = 5: el agente decide cada 5 pasos de física (~10 veces por segundo a 50fps)
+        // Se añade DESPUÉS de StatueAgent para que RequireComponent encuentre el agente existente
         var dr = estGO.AddComponent<DecisionRequester>();
         dr.DecisionPeriod = 5;
         EditorUtility.SetDirty(dr);
-
-        // ── StatueAgent ───────────────────────────────────────────────────────
-        var agente = estGO.AddComponent<StatueAgent>();
-        agente.jugador          = tpGO.transform;
-        agente.camaraJugador    = camPt.transform;
-        agente.targetPlayerCtrl = tpComp;
-        agente.MaxStep          = 5000;
-        // Solo la instancia principal muestra gizmos y logs para no saturar la consola
-        agente.mostrarGizmos = principal;
-        agente.activarLogs   = principal;
-        EditorUtility.SetDirty(agente);
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -187,5 +193,138 @@ public static class CrearEscenaEstatua
         mat.SetColor("_BaseColor", color);
         AssetDatabase.CreateAsset(mat, ruta);
         return mat;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ESCENA DE EJECUCIÓN (EXEC)
+    // ════════════════════════════════════════════════════════════════════════════
+
+    const string EXEC_SCENE_PATH  = "Assets/Scenes/6_EXEC_Estatua.unity";
+    const string MODEL_PATH       = "Assets/ML-Agents/Models/StatueAgent.onnx";
+    const string PLAYER_PREFAB    = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/a/Personaje.prefab";
+
+    [MenuItem("DAV/Crear Escena 6 EXEC \u2013 Estatua Acechadora")]
+    public static void EjecutarEXEC()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            return;
+
+        // Verificar que el modelo existe antes de empezar
+        var modelo = AssetDatabase.LoadAssetAtPath<NNModel>(MODEL_PATH);
+        if (modelo == null)
+        {
+            Debug.LogError($"Modelo no encontrado en {MODEL_PATH}. " +
+                           "Cópialo primero y espera a que Unity lo importe.");
+            return;
+        }
+
+        // Materiales compartidos (mismos que TRN)
+        Material matSuelo   = ObtenerMat("MatSuelo",   new Color(0.22f, 0.22f, 0.22f));
+        Material matJugador = ObtenerMat("MatJugador",  new Color(0.20f, 0.60f, 1.00f));
+        Material matEstatua = ObtenerMat("MatEstatua",  new Color(0.55f, 0.55f, 0.55f));
+
+        var escena = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        // Luz
+        var luzGO = new GameObject("Directional Light");
+        var luz   = luzGO.AddComponent<Light>();
+        luz.type      = LightType.Directional;
+        luz.intensity = 1f;
+        luzGO.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+        // Única área de juego
+        CrearAreaEXEC(matSuelo, matJugador, matEstatua, modelo);
+
+        EditorSceneManager.SaveScene(escena, EXEC_SCENE_PATH);
+        AssetDatabase.Refresh();
+        Debug.Log($"<color=lime><b>✓ Escena EXEC creada en {EXEC_SCENE_PATH}</b></color>");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    static void CrearAreaEXEC(Material matSuelo, Material matJugador,
+                               Material matEstatua, NNModel modelo)
+    {
+        var raiz = new GameObject("TrainingArea_00");
+
+        // ── Suelo ─────────────────────────────────────────────────────────────
+        var suelo = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        suelo.name = "Suelo";
+        suelo.transform.SetParent(raiz.transform, false);
+        suelo.transform.localScale = new Vector3(2.4f, 1f, 2.4f);
+        suelo.GetComponent<Renderer>().sharedMaterial = matSuelo;
+
+        // ── Jugador: prefab completo del shooter pack ─────────────────────────
+        var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PLAYER_PREFAB);
+        if (playerPrefab == null)
+        {
+            Debug.LogError($"Prefab no encontrado en {PLAYER_PREFAB}");
+            return;
+        }
+        var jugGO = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+        jugGO.name = "Jugador";
+        jugGO.transform.SetParent(raiz.transform, false);
+        jugGO.transform.localPosition = new Vector3(3f, 0f, 0f);
+
+        // La cámara principal está dentro del esqueleto: head → SOCKET_Camera → Camera
+        // Buscamos la Camera con tag MainCamera dentro del prefab
+        Camera camComp = null;
+        foreach (var c in jugGO.GetComponentsInChildren<Camera>(true))
+        {
+            if (c.CompareTag("MainCamera")) { camComp = c; break; }
+        }
+        // Fallback: primera cámara que encuentre
+        if (camComp == null) camComp = jugGO.GetComponentInChildren<Camera>(true);
+
+        Transform camaraJugadorTransform = camComp != null ? camComp.transform : jugGO.transform;
+
+        // ── Estatua_Agent ─────────────────────────────────────────────────────
+        var estGO = new GameObject("Estatua_Agent");
+        estGO.transform.SetParent(raiz.transform, false);
+        estGO.transform.localPosition = new Vector3(-3f, 0f, 0f);
+
+        var visEst = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        visEst.name = "Visual";
+        visEst.transform.SetParent(estGO.transform, false);
+        visEst.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+        visEst.transform.localScale    = new Vector3(0.8f, 1.8f, 0.8f);
+        visEst.GetComponent<Renderer>().sharedMaterial = matEstatua;
+        Object.DestroyImmediate(visEst.GetComponent<Collider>());
+
+        var bc    = estGO.AddComponent<BoxCollider>();
+        bc.center = new Vector3(0f, 0.9f, 0f);
+        bc.size   = new Vector3(0.8f, 1.8f, 0.8f);
+
+        // StatueAgent PRIMERO
+        var agente = estGO.AddComponent<StatueAgent>();
+        agente.jugador          = jugGO.transform;
+        agente.camaraJugador    = camaraJugadorTransform;
+        agente.targetPlayerCtrl = null;
+        agente.MaxStep          = 0;
+        agente.mostrarGizmos    = true;
+        agente.activarLogs      = true;
+        EditorUtility.SetDirty(agente);
+
+        // BehaviorParameters: usar el auto-creado por Agent y asignar modelo
+        var bp = estGO.GetComponent<BehaviorParameters>();
+        bp.BehaviorName = "StatueAgent";
+        bp.BrainParameters.VectorObservationSize        = 12;
+        bp.BrainParameters.NumStackedVectorObservations = 1;
+        bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(2);
+        bp.Model        = modelo;
+        bp.BehaviorType = BehaviorType.InferenceOnly;
+        EditorUtility.SetDirty(bp);
+
+        // DecisionRequester DESPUÉS de StatueAgent
+        var dr = estGO.AddComponent<DecisionRequester>();
+        dr.DecisionPeriod = 5;
+        EditorUtility.SetDirty(dr);
+
+        // ── Gestor de partida: overlay "¡TE ATRAPÓ!" ──────────────────────────
+        var gestorGO = new GameObject("GestorPartida");
+        gestorGO.transform.SetParent(raiz.transform, false);
+        var gestor = gestorGO.AddComponent<GestorPartidaEstatua>();
+        gestor.jugador = jugGO.transform;
+        gestor.estatua = estGO.transform;
+        EditorUtility.SetDirty(gestor);
     }
 }

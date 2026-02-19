@@ -16,11 +16,16 @@ using Unity.MLAgents.Sensors;
  *   - El vector desde la cámara hacia la estatua
  * Si dot > umbral (~53° de campo visual) → la estatua es "vista".
  *
- * OBSERVACIONES (Space Size = 7):
+ * OBSERVACIONES (Space Size = 12):
  *   [0-2] Posición relativa del jugador   (Vector3 normalizado)
  *   [3]   ¿Está siendo vista?             (0 = no / 1 = sí)
  *   [4-6] Forward de la cámara del jugador (Vector3 normalizado)
  *         → Permite a la IA ANTICIPAR si la cámara se va a girar hacia ella.
+ *   [7-9] Velocidad propia normalizada    (Vector3 / velocidadMax)
+ *         → CRÍTICO: sin esto la red no distingue "voy directo" de "estoy orbitando".
+ *   [10]  Distancia normalizada al jugador (float 0-1)
+ *   [11]  Dot(dirMovimiento, dirObjetivo)  (float -1 a 1)
+ *         → Feedback inmediato de alineación: 1=directo, 0=perpendicular, -1=huyendo.
  *
  * ACCIONES (Continuous Actions = 2):
  *   [0] moveX  [-1, 1]
@@ -60,7 +65,7 @@ public class StatueAgent : Agent
     public float distanciaMaxima = 12f;
 
     [Tooltip("Distancia a la que se considera que la estatua alcanzó al jugador (éxito).")]
-    public float distanciaExito = 1.2f;
+    public float distanciaExito = 0.35f;
 
     [Tooltip("Radio aleatorio de spawn para estatua y jugador al inicio del episodio.")]
     public float radioSpawn = 5f;
@@ -80,6 +85,10 @@ public class StatueAgent : Agent
     // Estado de la mecánica (usado también en Gizmos y debugStatus)
     private bool   siendoVista  = false;
     private string debugStatus  = "Inicializando...";
+
+    // Seguimiento de velocidad propia (necesario porque el agente no tiene Rigidbody)
+    private Vector3 posicionPrevia;
+    private Vector3 velocidadActual = Vector3.zero;
 
     // ════════════════════════════════════════════════════════════════════════════
     // 1. INICIALIZACIÓN – Se ejecuta UNA VEZ al pulsar Play
@@ -103,6 +112,10 @@ public class StatueAgent : Agent
 
         // Spawn de la estatua en posición aleatoria dentro del radio
         transform.position = PuntoAleatorio(radioSpawn);
+
+        // Resetear tracker de velocidad
+        posicionPrevia    = transform.position;
+        velocidadActual   = Vector3.zero;
 
         if (Academy.Instance.IsCommunicatorOn)
         {
@@ -140,10 +153,26 @@ public class StatueAgent : Agent
 
         // OBS [4-6]: Forward de la cámara del jugador (normalizado)
         // CLAVE: permite a la IA anticipar si la cámara se está girando HACIA ella.
-        // Con este dato puede aprender a moverse "por detrás" o justo antes de ser vista.
         sensor.AddObservation(camaraJugador.forward); // 3 observaciones
 
-        // TOTAL: 7 observaciones → Space Size = 7 en BehaviorParameters
+        // OBS [7-9]: Velocidad propia normalizada por velocidad máxima
+        // CRÍTICO: sin esta observación la red no distingue entre "voy directo al objetivo"
+        // y "estoy orbitando a la misma distancia". Primer fix contra el orbiting.
+        sensor.AddObservation(velocidadActual / velocidad); // 3 observaciones
+
+        // OBS [10]: Distancia normalizada al jugador (0 = encima, 1 = en el límite del área)
+        float distNorm = Vector3.Distance(transform.position, jugador.position) / distanciaMaxima;
+        sensor.AddObservation(Mathf.Clamp01(distNorm)); // 1 observación
+
+        // OBS [11]: Alineación movimiento-objetivo: 1=directo, 0=perpendicular, -1=huyendo
+        // Feedback inmediato que refuerza la recompensa de alineación.
+        Vector3 dirObjetivo = (jugador.position - transform.position).normalized;
+        float dotAlineacion = velocidadActual.magnitude > 0.01f
+            ? Vector3.Dot(velocidadActual.normalized, dirObjetivo)
+            : 0f;
+        sensor.AddObservation(dotAlineacion); // 1 observación
+
+        // TOTAL: 12 observaciones → Space Size = 12 en BehaviorParameters
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -184,28 +213,49 @@ public class StatueAgent : Agent
             Vector3 movimiento = new Vector3(moveX, 0f, moveZ) * velocidad * Time.deltaTime;
             transform.position += movimiento;
             debugStatus = "No vista → Moviéndose";
+
+            // RECOMPENSA DE ALINEACIÓN: premia moverse DIRECTO al jugador.
+            // Penaliza el movimiento perpendicular (orbiting) directamente.
+            //   dot =  1.0 → va directo al objetivo   → +0.02
+            //   dot =  0.0 → movimiento perpendicular  →  0.00  (orbiting sin beneficio)
+            //   dot = -1.0 → se aleja                 → -0.02
+            if (intentaMoverse)
+            {
+                Vector3 dirObjetivo   = (jugador.position - transform.position).normalized;
+                Vector3 dirMovimiento = new Vector3(moveX, 0f, moveZ).normalized;
+                float   alineacion    = Vector3.Dot(dirObjetivo, dirMovimiento);
+                AplicarRecompensa(alineacion * 0.02f);
+            }
         }
+
+        // ─── Actualizar velocidad propia ──────────────────────────────────────
+        // Debe calcularse DESPUÉS del movimiento para reflejar el desplazamiento real.
+        velocidadActual = (transform.position - posicionPrevia) / Time.deltaTime;
+        posicionPrevia  = transform.position;
 
         // ─── Métricas de progreso ──────────────────────────────────────────────
         float distanciaActual = Vector3.Distance(transform.position, jugador.position);
 
-        // RECOMPENSA por acercarse ("caliente, caliente") – solo cuando se mueve libremente
         if (!siendoVista)
         {
+            // SIMÉTRICO: recompensa acercarse Y penaliza alejarse.
+            // Reducido a 0.05 porque la recompensa de alineación ya cubre la dirección.
             float progreso = distanciaAnterior - distanciaActual;
-            if (progreso > 0f)
-                AplicarRecompensa(progreso * 0.5f);
+            AplicarRecompensa(progreso * 0.05f);
         }
 
         // Siempre actualizamos la distancia anterior (el jugador también puede moverse)
         distanciaAnterior = distanciaActual;
 
-        // Penalización por tiempo: incentiva llegar al jugador lo más rápido posible
-        AplicarRecompensa(-1f / MaxStep);
+        // Penalización por tiempo: crea urgencia para llegar rápido.
+        // Con MaxStep=5000 → -5/5000 = -0.001/step → acumulado -5 si no toca nunca.
+        // Guard: MaxStep=0 significa sin límite (modo EXEC), no dividir por cero.
+        if (MaxStep > 0)
+            AplicarRecompensa(-5f / MaxStep);
 
         // ─── Condiciones de fin de episodio ───────────────────────────────────
         if (distanciaActual <= distanciaExito)
-            finalizaEpisodio("¡ALCANZÓ al jugador!", 2.0f, true);
+            finalizaEpisodio("¡ALCANZÓ al jugador!", 5.0f, true);
 
         if (distanciaActual > distanciaMaxima)
             finalizaEpisodio("Salió del área de entrenamiento", -1.0f, false);

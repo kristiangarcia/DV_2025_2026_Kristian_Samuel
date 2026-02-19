@@ -1,99 +1,70 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN DE ENTRENAMIENTO – StatueAgent ("La Estatua Acechadora")
-# DAV - 2ºDAM
+# DAV - 2ºDAM  ·  v2 – Basada en investigación de mejores prácticas PPO 2025
 #
-# Algoritmo: PPO (Proximal Policy Optimization)
-#   → Ideal para mecánicas con recompensas densas y comportamiento continuo.
-#   → Estable y probado para los ejemplos de este proyecto.
+# Cambios respecto a v1:
+#   · batch_size   128  → 1024   (rango óptimo para acciones continuas: 512-5120)
+#   · buffer_size  2048 → 10240  (10x batch_size para estabilidad con 9 instancias)
+#   · beta         5e-3 → 1e-3   (menos entropía: "quieto" converge más fácil)
+#   · num_epoch    3    → 4      (buffer más grande → más aprovechamiento por ciclo)
+#   · gamma        0.99 → 0.995  (horizonte largo para MaxStep=5000)
+#   · time_horizon 64   → 512    (debe cubrir secuencias de persecución completas)
+#   · max_steps    500K → 3M     (mecánica condicional compleja necesita más pasos)
+#   · Space Size   7    → 12     (nuevas obs: velocidad propia, dist. norm., alineación)
 #
 # USO (desde el contenedor Docker en /Users/kristian/Downloads/mlagents_ver1102/):
-#   mlagents-learn Assets/ML-Agents/Config/estatua_config.yaml --run-id=Estatua_v1
+#   mlagents-learn Assets/ML-Agents/Config/estatua_config.yaml --run-id=Estatua_v2
 #
-# TENSORBOARD (para monitorizar el entrenamiento):
+# TENSORBOARD:
 #   tensorboard --logdir results
 # ═══════════════════════════════════════════════════════════════════════════════
 
 behaviors:
-  StatueAgent:  # Debe coincidir EXACTAMENTE con el campo "Behavior Name" del BehaviorParameters
+  StatueAgent:
     trainer_type: ppo
 
     hyperparameters:
-      # batch_size: Muestras por mini-batch al actualizar la red.
-      #   → Más pequeño = actualizaciones más frecuentes y ruidosas.
-      #   → Recomendado para acciones continuas: 64-512.
-      batch_size: 128
+      # Para acciones continuas, rango oficial ML-Agents: 512-5120.
+      # Con 9 instancias y time_horizon=512 → ~4608 muestras/ciclo → batch de 1024.
+      batch_size: 1024
 
-      # buffer_size: Experiencias acumuladas antes de hacer una actualización.
-      #   → Debe ser múltiplo de batch_size. Relación estándar: 16-32x batch_size.
-      buffer_size: 2048
+      # 10x batch_size. Cubre ~2 ciclos completos antes de actualizar.
+      buffer_size: 10240
 
-      # learning_rate: Paso de aprendizaje del optimizador Adam.
-      #   → Si la recompensa no converge: bajar a 1e-4.
-      #   → Si converge demasiado lento: subir a 5e-4 con cuidado.
       learning_rate: 3.0e-4
 
-      # beta: Coeficiente de entropía. Penaliza la certeza excesiva → fomenta exploración.
-      #   → Si el agente queda "paralizado" explorando: bajar a 1e-3.
-      #   → Si converge prematuramente sin aprender la mecánica: subir a 1e-2.
-      beta: 5.0e-3
+      # Reducido de 5e-3: menos entropía para que "quedarse quieto cuando es visto"
+      # converja sin que la aleatoriedad interfiera.
+      beta: 1.0e-3
 
-      # epsilon: Clip ratio de PPO. Limita el cambio de política por iteración.
-      #   → 0.2 es el valor estándar. Rango recomendado: 0.1 – 0.3.
       epsilon: 0.2
-
-      # lambd: Factor lambda para GAE (Generalized Advantage Estimation).
-      #   → Equilibrio entre sesgo y varianza en el cálculo de ventajas.
-      #   → 0.95 es el estándar. Bajar a 0.9 si hay mucha varianza.
       lambd: 0.95
 
-      # num_epoch: Pasadas sobre el buffer por actualización.
-      #   → Más épocas = más uso de cada batch de datos.
-      #   → 3 es un buen equilibrio para evitar sobreajuste.
-      num_epoch: 3
+      # Buffer más grande permite más pasadas sin sobreajuste.
+      num_epoch: 4
 
-      # learning_rate_schedule: Decaimiento del learning rate.
-      #   · linear: decae de 3e-4 → 0 a lo largo del entrenamiento (recomendado).
-      #   · constant: no decae.
       learning_rate_schedule: linear
 
     network_settings:
-      # normalize: Normaliza las observaciones de entrada.
-      #   → MUY IMPORTANTE activar cuando las observaciones son floats mixtos
-      #      (posiciones normalizadas, 0/1 binario, vectores de dirección).
-      normalize: true
-
-      # hidden_units: Neuronas por capa oculta.
-      #   → 128 es suficiente para 7 observaciones y 2 acciones.
-      #   → Si no converge: probar 256. Si entrena lento: probar 64.
-      hidden_units: 128
-
-      # num_layers: Capas ocultas de la red neuronal.
-      #   → 2 capas es el estándar para comportamientos de complejidad media.
+      normalize: true        # Obligatorio: obs mixtas (floats, binarios, vectores)
+      hidden_units: 128      # Suficiente para 12 obs y 2 acciones
       num_layers: 2
 
     reward_signals:
       extrinsic:
-        # gamma: Factor de descuento. Cuánto "vale" una recompensa futura.
-        #   → 0.99 = horizonte largo (el agente piensa a futuro).
-        #   → Para episodios cortos (<500 pasos): bajar a 0.95-0.97.
-        gamma: 0.99
+        # 0.995 en vez de 0.99: con MaxStep=5000 el agente necesita valorar
+        # recompensas muy futuras (llegar en step 100 vs step 4900).
+        gamma: 0.995
         strength: 1.0
 
-    # max_steps: Pasos TOTALES de entrenamiento en todas las instancias combinadas.
-    #   → 500K para aprendizaje inicial de la mecánica básica.
-    #   → 1M-2M para refinamiento y comportamiento más sofisticado.
-    max_steps: 500000
+    # 3M steps: la mecánica condicional ("muévete solo cuando no eres visto")
+    # necesita ~6x más pasos que un perseguidor simple (FoodCollector usa 2M).
+    max_steps: 3000000
 
-    # time_horizon: Pasos antes de calcular el retorno (mini-episodio interno).
-    #   → Debe ser <= longitud media de episodio.
-    #   → Con MaxStep=5000 y comportamiento mixto: 64-128 es razonable.
-    time_horizon: 64
+    # 512 = ~10% del episodio. Captura secuencias de persecución completas.
+    # Era 64 = 1.28% del episodio → el agente no veía la correlación orbitar→no llegar.
+    time_horizon: 512
 
-    # summary_freq: Cada cuántos pasos se escribe una entrada en TensorBoard.
     summary_freq: 10000
-
-    # keep_checkpoints: Checkpoints máximos guardados en disco.
     keep_checkpoints: 5
-
-    # checkpoint_interval: Guardar checkpoint cada N pasos.
-    checkpoint_interval: 50000
+    checkpoint_interval: 100000
