@@ -67,6 +67,12 @@ crashlytics-build.properties
 [Aa]ssets/[Ss]treamingAssets/aa.meta
 [Aa]ssets/[Ss]treamingAssets/aa/*
 
+# Unity auto-recovery files
+[Aa]ssets/_Recovery/
+
+# ML-Agents profiling timers
+[Aa]ssets/ML-Agents/Timers/
+
 # OS generated files
 .DS_Store
 .DS_Store?
