@@ -94,6 +94,7 @@ public class SpawnadorEstatua : MonoBehaviour
         // Instanciar el prefab visual
         estatuaActual = Instantiate(prefabEstatua, spawnPos, Quaternion.identity);
         estatuaActual.name = "Estatua_Agent";
+        estatuaActual.transform.localScale = Vector3.one * 0.3f;
 
         // Añadir BoxCollider si el prefab no trae ninguno en el root
         if (estatuaActual.GetComponent<Collider>() == null)
