@@ -39,6 +39,33 @@ public class Projectile : MonoBehaviour {
 		//Ignore collisions with other projectiles.
 		if (collision.gameObject.GetComponent<Projectile>() != null)
 			return;
+
+		// --- DAÑO A ZOMBIES ---
+		ZombieNormal zombieN = collision.gameObject.GetComponentInParent<ZombieNormal>();
+		if (zombieN != null)
+		{
+			zombieN.RecibirDaño(34f);
+			Destroy(gameObject);
+			return;
+		}
+		ZombieKamikaze zombieK = collision.gameObject.GetComponentInParent<ZombieKamikaze>();
+		if (zombieK != null)
+		{
+			zombieK.RecibirDaño(34f);
+			Destroy(gameObject);
+			return;
+		}
+		// También por tag
+		if (collision.gameObject.CompareTag("Zombie"))
+		{
+			ZombieNormal zn = collision.transform.root.GetComponent<ZombieNormal>();
+			ZombieKamikaze zk = collision.transform.root.GetComponent<ZombieKamikaze>();
+			if (zn != null) zn.RecibirDaño(34f);
+			else if (zk != null) zk.RecibirDaño(34f);
+			else Destroy(collision.transform.root.gameObject);
+			Destroy(gameObject);
+			return;
+		}
 		
 		// //Ignore collision if bullet collides with "Player" tag
 		// if (collision.gameObject.CompareTag("Player")) 

@@ -32,7 +32,7 @@ public class SistemaDisparo : MonoBehaviour
             }
         }
 
-        if (dañoArma < 100f) dañoArma = 100f;
+        if (dañoArma < 34f) dañoArma = 34f;
     }
 
     void Update()
