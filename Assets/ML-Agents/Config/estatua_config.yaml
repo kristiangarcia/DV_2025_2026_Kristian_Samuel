@@ -59,7 +59,7 @@ behaviors:
 
     # 3M steps: la mecánica condicional ("muévete solo cuando no eres visto")
     # necesita ~6x más pasos que un perseguidor simple (FoodCollector usa 2M).
-    max_steps: 3000000
+    max_steps: 1000000
 
     # 512 = ~10% del episodio. Captura secuencias de persecución completas.
     # Era 64 = 1.28% del episodio → el agente no veía la correlación orbitar→no llegar.

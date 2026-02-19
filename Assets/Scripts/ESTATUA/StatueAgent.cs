@@ -65,7 +65,7 @@ public class StatueAgent : Agent
     public float distanciaMaxima = 12f;
 
     [Tooltip("Distancia a la que se considera que la estatua alcanzó al jugador (éxito).")]
-    public float distanciaExito = 0.35f;
+    public float distanciaExito = 1.0f;
 
     [Tooltip("Radio aleatorio de spawn para estatua y jugador al inicio del episodio.")]
     public float radioSpawn = 5f;
@@ -110,15 +110,14 @@ public class StatueAgent : Agent
         episodioCount++;
         recompensaEpisodio = 0f;
 
-        // Spawn de la estatua en posición aleatoria dentro del radio
-        transform.position = PuntoAleatorio(radioSpawn);
-
         // Resetear tracker de velocidad
-        posicionPrevia    = transform.position;
-        velocidadActual   = Vector3.zero;
+        posicionPrevia  = transform.position;
+        velocidadActual = Vector3.zero;
 
         if (Academy.Instance.IsCommunicatorOn)
         {
+            // Spawn aleatorio de la estatua solo en entrenamiento
+            transform.position = PuntoAleatorio(radioSpawn);
             // En training: spawn aleatorio del jugador (mínimo 2m de separación)
             int intentos = 0;
             do
@@ -255,10 +254,18 @@ public class StatueAgent : Agent
 
         // ─── Condiciones de fin de episodio ───────────────────────────────────
         if (distanciaActual <= distanciaExito)
-            finalizaEpisodio("¡ALCANZÓ al jugador!", 5.0f, true);
+        {
+            // En EXEC (MaxStep=0) NO reseteamos: GestorPartidaEstatua muestra el overlay
+            // y la estatua sigue persiguiendo sin teletransportarse.
+            if (MaxStep > 0)
+                finalizaEpisodio("¡ALCANZÓ al jugador!", 5.0f, true);
+        }
 
         if (distanciaActual > distanciaMaxima)
-            finalizaEpisodio("Salió del área de entrenamiento", -1.0f, false);
+        {
+            if (MaxStep > 0)
+                finalizaEpisodio("Salió del área de entrenamiento", -1.0f, false);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -290,19 +297,18 @@ public class StatueAgent : Agent
         //    Ejemplo con umbral 0.6: visible si está dentro de ≈53° del centro de la cámara.
         float dot = Vector3.Dot(camaraJugador.forward, dirCamaraAEstatua);
 
-        return dot > umbralVision;
+        // Fuera del ángulo de visión → no vista
+        if (dot <= umbralVision) return false;
 
-        // ── VERSIÓN MEJORADA PARA LA ESCENA DE JUEGO (con raycast de obstáculos) ──
-        // Descomenta este bloque y comenta el "return" anterior para usarla en el juego real.
-        // Detecta si hay un muro u objeto entre el jugador y la estatua.
-        //
-        // if (dot <= umbralVision) return false; // Fuera del ángulo de visión
-        //
-        // Vector3 origen    = camaraJugador.position;
-        // Vector3 direccion = (transform.position - origen);
-        // if (Physics.Raycast(origen, direccion, out RaycastHit hit, distanciaMaxVision))
-        //     return hit.collider.CompareTag("Estatua"); // Solo visible si el rayo llega a la estatua
-        // return false;
+        // Dentro del ángulo: comprobar si hay un obstáculo (muro, columna...) entre
+        // la cámara y la estatua mediante raycast.
+        // La estatua es visible SOLO si el rayo la alcanza directamente.
+        Vector3 origen    = camaraJugador.position;
+        Vector3 direccion = (transform.position - origen);
+        if (Physics.Raycast(origen, direccion, out RaycastHit hit, distanciaMaxVision))
+            return hit.collider.GetComponentInParent<StatueAgent>() != null;
+
+        return false;
     }
 
     // ════════════════════════════════════════════════════════════════════════════

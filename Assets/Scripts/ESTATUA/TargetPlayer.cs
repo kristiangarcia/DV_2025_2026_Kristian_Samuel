@@ -3,53 +3,57 @@ using UnityEngine;
 /** DAV - 2ºDAM
  * CLASE TARGETPLAYER – Jugador Dummy para Entrenamiento
  *
- * Simula el comportamiento de un jugador en la escena de entrenamiento.
- * Su función principal es mover la cámara de forma que cree VENTANAS DE OPORTUNIDAD
- * para que la StatueAgent pueda moverse sin ser vista.
+ * Simula un jugador real en la escena de entrenamiento:
+ *   1. DEAMBULA aleatoriamente por el área (camina hacia waypoints aleatorios).
+ *   2. GIRA la cámara a ángulos aleatorios con transición suave,
+ *      incluyendo pitch (arriba/abajo) para imitar movimiento humano real.
  *
- * MODOS DISPONIBLES:
- *   · Oscilación (recomendado): Péndulo predecible → permite al agente aprender a
- *     anticipar cuándo la cámara se aleja de ella.
- *   · Aleatorio: Giros instantáneos a ángulos al azar → más impredecible,
- *     entrena un comportamiento más reactivo.
+ * Diseñado para que las observaciones del StatueAgent en entrenamiento
+ * sean lo más similares posible a las de la escena EXEC con el jugador real.
  *
- * PARA MÚLTIPLES INSTANCIAS DE ENTRENAMIENTO: Cada par StatueAgent + TargetPlayer
- * debe ser hijo de un GameObject padre independiente. Las referencias deben
- * apuntar SIEMPRE al TargetPlayer del mismo par.
+ * NOTA: la referencia 'camara' debe apuntar al Transform de la MainCamera
+ * dentro del prefab Personaje (igual que en EXEC). TargetPlayer setea
+ * su rotación en espacio mundo directamente, anulando cualquier control
+ * de input del prefab (que debe estar desactivado en entrenamiento).
  */
 public class TargetPlayer : MonoBehaviour
 {
     // ─── REFERENCIAS ────────────────────────────────────────────────────────────
     [Header("Referencias")]
-    [Tooltip("Transform vacío hijo de este objeto que actúa como la 'cámara' del jugador.\n" +
-             "Solo necesita posición y rotación, NO necesita componente Camera real.")]
+    [Tooltip("Transform de la cámara del jugador (MainCamera dentro del prefab Personaje).")]
     public Transform camara;
 
-    // ─── MODO DE GIRO ────────────────────────────────────────────────────────────
-    [Header("Modo de Giro")]
-    [Tooltip("Oscilación: movimiento de péndulo. Predecible y bueno para aprendizaje inicial.\n" +
-             "Aleatorio: giros instantáneos. Más difícil, para refinamiento avanzado.")]
-    public bool usarOscilacion = true;
+    // ─── MOVIMIENTO ─────────────────────────────────────────────────────────────
+    [Header("Movimiento")]
+    [Tooltip("Velocidad de desplazamiento. A 20x timeScale, 2 m/s da movimiento ágil.")]
+    public float velocidadMovimiento = 2f;
 
-    // ─── CONFIGURACIÓN OSCILACIÓN ────────────────────────────────────────────────
-    [Header("Oscilación (péndulo)")]
-    [Tooltip("Velocidad del barrido. A 20x timeScale, 0.5f da ventanas cómodas al agente.")]
-    public float velocidadOscilacion = 0.5f;
+    [Tooltip("Radio de deambulación respecto al centro del área (padre). " +
+             "Debe ser menor que distanciaMaxima del StatueAgent.")]
+    public float radioDeambulacion = 7f;
 
-    [Tooltip("Amplitud del barrido en grados. 130° cubre buena parte de la arena.")]
-    [Range(30f, 180f)]
-    public float amplitudOscilacion = 130f;
+    // ─── CÁMARA ─────────────────────────────────────────────────────────────────
+    [Header("Cámara")]
+    [Tooltip("Velocidad de giro de la cámara en grados/segundo.")]
+    public float velocidadGiro = 100f;
 
-    // ─── CONFIGURACIÓN ALEATORIA ─────────────────────────────────────────────────
-    [Header("Rotación Aleatoria")]
-    [Tooltip("Segundos (en tiempo de juego escalado) entre cada giro aleatorio.")]
-    public float tiempoEntreCambios = 1.5f;
+    [Tooltip("Tiempo mínimo que la cámara mantiene una dirección antes de girar.")]
+    public float tiempoMinMirada = 0.4f;
+
+    [Tooltip("Tiempo máximo que la cámara mantiene una dirección antes de girar.")]
+    public float tiempoMaxMirada = 2.5f;
+
+    [Tooltip("Rango de pitch (mirar arriba/abajo) en grados. Imita movimiento humano real.")]
+    [Range(0f, 60f)]
+    public float rangoPitch = 25f;
 
     // ─── VARIABLES PRIVADAS ─────────────────────────────────────────────────────
-    // Offset aleatorio que se renueva en cada episodio para que la oscilación
-    // no cubra siempre el mismo arco del espacio.
-    private float offsetAngulo;
-    private float timer;
+    private Vector3  destino;
+    private float    timerCamara;
+    private float    yawObjetivo;
+    private float    yawActual;
+    private float    pitchObjetivo;
+    private float    pitchActual;
 
     // ════════════════════════════════════════════════════════════════════════════
     void Start()
@@ -60,57 +64,86 @@ public class TargetPlayer : MonoBehaviour
     // ════════════════════════════════════════════════════════════════════════════
     void Update()
     {
+        ActualizarMovimiento();
+        ActualizarCamara();
+    }
+
+    // ─── MOVIMIENTO ALEATORIO ───────────────────────────────────────────────────
+    private void ActualizarMovimiento()
+    {
+        // Llegar al waypoint → elegir uno nuevo
+        Vector3 dirPlana = new Vector3(destino.x - transform.position.x, 0f, destino.z - transform.position.z);
+        if (dirPlana.magnitude < 0.4f)
+            ElegirNuevoDestino();
+
+        // Mover hacia el waypoint en el plano XZ
+        dirPlana = dirPlana.normalized;
+        transform.position += dirPlana * velocidadMovimiento * Time.deltaTime;
+    }
+
+    // ─── ROTACIÓN DE CÁMARA ─────────────────────────────────────────────────────
+    private void ActualizarCamara()
+    {
         if (camara == null) return;
 
-        if (usarOscilacion)
-        {
-            // Péndulo: función seno sobre el tiempo escalado.
-            // El offset aleatorio hace que cada episodio empiece en una posición angular distinta,
-            // obligando al agente a generalizar en lugar de memorizar un único patrón.
-            float angulo = Mathf.Sin(Time.time * velocidadOscilacion) * amplitudOscilacion;
-            camara.rotation = Quaternion.Euler(0f, angulo + offsetAngulo, 0f);
-        }
-        else
-        {
-            // Giros instantáneos aleatorios: simula un jugador nervioso mirando en todas direcciones
-            timer -= Time.deltaTime;
-            if (timer <= 0f)
-            {
-                camara.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                timer = tiempoEntreCambios;
-            }
-        }
+        timerCamara -= Time.deltaTime;
+        if (timerCamara <= 0f)
+            ElegirNuevoAnguloCamara();
+
+        // Interpolar suavemente hacia el ángulo objetivo
+        yawActual   = Mathf.MoveTowardsAngle(yawActual,   yawObjetivo,   velocidadGiro * Time.deltaTime);
+        pitchActual = Mathf.MoveTowards     (pitchActual, pitchObjetivo, velocidadGiro * 0.5f * Time.deltaTime);
+
+        // Aplicar en espacio mundo (anula la jerarquía del esqueleto del prefab)
+        camara.rotation = Quaternion.Euler(pitchActual, yawActual, 0f);
+    }
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────────
+    private void ElegirNuevoDestino()
+    {
+        Vector3 centro = transform.parent != null ? transform.parent.position : Vector3.zero;
+        destino = new Vector3(
+            centro.x + Random.Range(-radioDeambulacion, radioDeambulacion),
+            transform.position.y,
+            centro.z + Random.Range(-radioDeambulacion, radioDeambulacion)
+        );
+    }
+
+    private void ElegirNuevoAnguloCamara()
+    {
+        yawObjetivo   = Random.Range(0f, 360f);
+        pitchObjetivo = Random.Range(-rangoPitch, rangoPitch);
+        timerCamara   = Random.Range(tiempoMinMirada, tiempoMaxMirada);
     }
 
     // ════════════════════════════════════════════════════════════════════════════
     /// <summary>
-    /// Reinicia el estado del jugador dummy al comienzo de cada episodio.
-    /// Llamado automáticamente desde StatueAgent.OnEpisodeBegin() si hay referencia.
+    /// Reinicia posición de destino y ángulo de cámara al comienzo de cada episodio.
+    /// Llamado desde StatueAgent.OnEpisodeBegin().
     /// </summary>
     public void ReiniciarEpisodio()
     {
-        // Nuevo ángulo base aleatorio → cada episodio cubre un arco diferente del espacio
-        offsetAngulo = Random.Range(0f, 360f);
-        timer        = tiempoEntreCambios;
+        ElegirNuevoDestino();
+        ElegirNuevoAnguloCamara();
+        // Snap inmediato al nuevo ángulo (sin transición entre episodios)
+        yawActual   = yawObjetivo;
+        pitchActual = pitchObjetivo;
     }
 
     // ════════════════════════════════════════════════════════════════════════════
-    // GIZMOS – Visualización en el Editor
+    // GIZMOS
     // ════════════════════════════════════════════════════════════════════════════
     private void OnDrawGizmos()
     {
+        // Waypoint destino (verde)
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(destino, 0.2f);
+        Gizmos.DrawLine(transform.position + Vector3.up, destino + Vector3.up);
+
         if (camara == null) return;
 
-        // Rayo del forward de la cámara (amarillo)
+        // Forward de la cámara (amarillo)
         Gizmos.color = Color.yellow;
         Gizmos.DrawRay(camara.position, camara.forward * 8f);
-
-        // Representación del jugador (esfera pequeña)
-        Gizmos.color = new Color(0f, 0.8f, 1f, 0.5f);
-        Gizmos.DrawWireSphere(transform.position, 0.4f);
-
-        // Posición de la cámara (punto naranja)
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawSphere(camara.position, 0.15f);
     }
 }
