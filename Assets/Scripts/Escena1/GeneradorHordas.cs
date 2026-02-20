@@ -86,11 +86,12 @@ public class GeneradorHordas : MonoBehaviour
             {
                 // Decidir qué tipo de zombie spawnear
                 bool esKamikaze = false;
-                if (rondaActual >= 5 && prefabZombieKamikaze != null)
+                if (rondaActual >= 2 && prefabZombieKamikaze != null)
                 {
-                    // Probabilidad de kamikaze: 20% en ronda 5, +5% por ronda
-                    float probKamikaze = 0.20f + (rondaActual - 5) * 0.05f;
-                    probKamikaze = Mathf.Min(probKamikaze, 0.5f); // Máximo 50%
+                    // Desde ronda 2: probabilidad base + factor aleatorio para ser impredecible
+                    float probBase = 0.10f + (rondaActual - 2) * 0.06f;
+                    float factorAleatorio = Random.Range(-0.08f, 0.08f); // Impredecible
+                    float probKamikaze = Mathf.Clamp(probBase + factorAleatorio, 0.05f, 0.45f);
                     esKamikaze = Random.value < probKamikaze;
                 }
 
