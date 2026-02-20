@@ -38,6 +38,8 @@ public class GeneradorHordas : MonoBehaviour
             gameObject.AddComponent<HUDRonda>();
         if (FindFirstObjectByType<PantallaPausa>() == null)
             gameObject.AddComponent<PantallaPausa>();
+        if (FindFirstObjectByType<SkyboxApocaliptico>() == null)
+            gameObject.AddComponent<SkyboxApocaliptico>();
 
         // Iniciar la primera ronda tras 2 segundos
         StartCoroutine(IniciarPrimeraRonda());
@@ -95,24 +97,26 @@ public class GeneradorHordas : MonoBehaviour
                     esKamikaze = Random.value < probKamikaze;
                 }
 
-                GameObject prefab = esKamikaze ? prefabZombieKamikaze : prefabZombie;
+                // SIEMPRE usar el prefab del zombie normal (tiene NavMesh, colliders, escala correcta)
                 Vector3 posicionSegura = hit.position + Vector3.up;
-                GameObject nuevoZombie = Instantiate(prefab, posicionSegura, Quaternion.identity);
+                GameObject nuevoZombie = Instantiate(prefabZombie, posicionSegura, Quaternion.identity);
 
                 // Forzar NavMesh
                 NavMeshAgent agente = nuevoZombie.GetComponent<NavMeshAgent>();
                 if (agente != null)
                     agente.Warp(hit.position);
 
-                // Configurar objetivo y vida extra
+                // Configurar según tipo
                 if (esKamikaze)
                 {
-                    ZombieKamikaze scriptK = nuevoZombie.GetComponent<ZombieKamikaze>();
-                    if (scriptK != null)
-                    {
-                        scriptK.objetivo = jugador;
-                        scriptK.vida += vidaExtraZombie;
-                    }
+                    // Quitar ZombieNormal y poner ZombieKamikaze
+                    ZombieNormal scriptN = nuevoZombie.GetComponent<ZombieNormal>();
+                    if (scriptN != null) Destroy(scriptN);
+
+                    ZombieKamikaze scriptK = nuevoZombie.AddComponent<ZombieKamikaze>();
+                    scriptK.objetivo = jugador;
+                    scriptK.vida = 100f + vidaExtraZombie;
+                    scriptK.vidaMaxima = scriptK.vida;
                 }
                 else
                 {
