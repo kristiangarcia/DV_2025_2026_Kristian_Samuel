@@ -30276,6 +30276,52 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1721270431}
   m_SourcePrefab: {fileID: 100100000, guid: 7c411e9a9b087734083fd6c10e8eaf93, type: 3}
+--- !u!1 &899300714
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 899300716}
+  - component: {fileID: 899300715}
+  m_Layer: 0
+  m_Name: GestorMusicaJuego
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &899300715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 899300714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 542eda0589a64441684b84fbbb80b6b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GestorMusicaJuego
+  musicaGameplay: {fileID: 8300000, guid: ab6e74a9bfb1c472784413a75c165648, type: 3}
+  volumen: 0.5
+--- !u!4 &899300716
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 899300714}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &903025092
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -71597,3 +71643,4 @@ SceneRoots:
   - {fileID: 171217563}
   - {fileID: 1848008127}
   - {fileID: 240520129}
+  - {fileID: 899300716}

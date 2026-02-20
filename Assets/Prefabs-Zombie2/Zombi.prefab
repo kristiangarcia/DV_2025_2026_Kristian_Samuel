@@ -1055,6 +1055,13 @@ MonoBehaviour:
   "da\xF1oAtaque": 10
   velocidadAtaque: 1
   distanciaAtaque: 2.5
+  sonidosMuerte:
+  - {fileID: 8300000, guid: f8eed54ef4b9d4c759123fa12dcb0fd0, type: 3}
+  - {fileID: 8300000, guid: e28d80e6dd6034694867d96fa7cd9ae4, type: 3}
+  sonidosGolpe:
+  - {fileID: 8300000, guid: dbe73ef9ccfb0438bbf43d85d3d08ccb, type: 3}
+  - {fileID: 8300000, guid: b891528084f60472387f74f10dac45f7, type: 3}
+  - {fileID: 8300000, guid: 4be46f833f9e04201a1a045cf6b359de, type: 3}
 --- !u!195 &8604328817555023116
 NavMeshAgent:
   m_ObjectHideFlags: 0
