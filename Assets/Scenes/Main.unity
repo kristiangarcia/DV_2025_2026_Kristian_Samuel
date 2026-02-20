@@ -7900,9 +7900,9 @@ MonoBehaviour:
     type: 3}
   jugador: {fileID: 1647492962}
   spawnadorEstatua: {fileID: 240520130}
-  zombiesRondaInicial: 5
-  zombiesExtraPorRonda: 3
-  tiempoEntreSpawns: 0.5
+  zombiesRondaInicial: 15
+  zombiesExtraPorRonda: 8
+  tiempoEntreSpawns: 0.3
   radioDelMapa: 80
 --- !u!4 &240520129
 Transform:
