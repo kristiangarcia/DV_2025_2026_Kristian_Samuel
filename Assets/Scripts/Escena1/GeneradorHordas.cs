@@ -14,9 +14,9 @@ public class GeneradorHordas : MonoBehaviour
     public SpawnadorEstatua spawnadorEstatua;
 
     [Header("Configuración de Rondas")]
-    public int zombiesRondaInicial = 5;       // Zombies en la ronda 1
-    public int zombiesExtraPorRonda = 3;      // Cuántos más por cada ronda
-    public float tiempoEntreSpawns = 0.5f;
+    public int zombiesRondaInicial = 15;      // Zombies en la ronda 1
+    public int zombiesExtraPorRonda = 8;      // Cuántos más por cada ronda
+    public float tiempoEntreSpawns = 0.3f;
 
     [Header("Área de Búsqueda")]
     public float radioDelMapa = 50f;
