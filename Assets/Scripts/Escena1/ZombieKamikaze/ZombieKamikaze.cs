@@ -10,6 +10,12 @@ public class ZombieKamikaze : MonoBehaviour
     public float dañoExplosion = 50f;
     public GameObject efectoExplosion;
 
+    [Header("Sonidos")]
+    [Tooltip("Sonidos de muerte (Zombie_dead_1, Zombie_dead_2).")]
+    public AudioClip[] sonidosMuerte;
+    [Tooltip("Sonidos de golpe al jugador (Zombie_hit_1, 2, 3).")]
+    public AudioClip[] sonidosGolpe;
+
     private NavMeshAgent agente;
     private Animator animator;
     private bool estaMuerto = false;
@@ -120,9 +126,18 @@ public class ZombieKamikaze : MonoBehaviour
         }
     }
 
+    void ReproducirSonidoAleatorio(AudioClip[] clips)
+    {
+        if (clips == null || clips.Length == 0) return;
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+        if (clip != null)
+            AudioSource.PlayClipAtPoint(clip, transform.position);
+    }
+
     void Morir()
     {
         estaMuerto = true;
+        ReproducirSonidoAleatorio(sonidosMuerte);
 
         // Explotar al morir también
         CrearExplosion();
@@ -151,6 +166,7 @@ public class ZombieKamikaze : MonoBehaviour
         if (vidaScript != null)
         {
             vidaScript.RecibirDaño(dañoExplosion);
+            ReproducirSonidoAleatorio(sonidosGolpe);
         }
 
         Destroy(gameObject);

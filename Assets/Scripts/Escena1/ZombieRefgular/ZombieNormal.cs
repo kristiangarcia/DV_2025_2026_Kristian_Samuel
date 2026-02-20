@@ -11,6 +11,12 @@ public class ZombieNormal : MonoBehaviour
     public float velocidadAtaque = 1f; // Segundos entre cada golpe
     public float distanciaAtaque = 2.5f; // Distancia para atacar
 
+    [Header("Sonidos")]
+    [Tooltip("Sonidos de muerte (Zombie_dead_1, Zombie_dead_2).")]
+    public AudioClip[] sonidosMuerte;
+    [Tooltip("Sonidos de golpe al jugador (Zombie_hit_1, 2, 3).")]
+    public AudioClip[] sonidosGolpe;
+
     private NavMeshAgent agente;
     private Animator animator;
     private float tiempoUltimoAtaque;
@@ -82,6 +88,7 @@ public class ZombieNormal : MonoBehaviour
                 {
                     vidaScript.RecibirDaño(dañoAtaque);
                     tiempoUltimoAtaque = Time.time;
+                    ReproducirSonidoAleatorio(sonidosGolpe);
                 }
             }
         }
@@ -128,9 +135,18 @@ public class ZombieNormal : MonoBehaviour
         }
     }
 
+    void ReproducirSonidoAleatorio(AudioClip[] clips)
+    {
+        if (clips == null || clips.Length == 0) return;
+        AudioClip clip = clips[Random.Range(0, clips.Length)];
+        if (clip != null)
+            AudioSource.PlayClipAtPoint(clip, transform.position);
+    }
+
     void Morir()
     {
         estaMuerto = true;
+        ReproducirSonidoAleatorio(sonidosMuerte);
 
         // Forzar animación de muerte directamente
         if (animator != null)
