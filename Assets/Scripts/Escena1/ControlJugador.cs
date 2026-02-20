@@ -7,7 +7,9 @@ using UnityEngine.InputSystem;
 
 
 public class ControlJugador : MonoBehaviour{
-    private PlayerControls controls;//puente entre InputSystem y este script 
+    public static ControlJugador Instancia { get; private set; }
+
+    private PlayerControls controls;//puente entre InputSystem y este script
     private Vector2 entradaMov;
     private Vector2 entradaMirar;
 
@@ -32,8 +34,11 @@ public class ControlJugador : MonoBehaviour{
     private bool esFPS = true;
 
     private void Awake(){
+        Instancia = this;
         controls = new PlayerControls();
         controller = GetComponent<CharacterController>();
+        // Aplicar sensibilidad guardada en opciones (slider 0.1-10 → sensibMouse *0.1)
+        sensibMouse = PlayerPrefs.GetFloat("Sensibilidad", 2f) * 0.1f;
 
         //DECLARACIÓN DE SUSCRIPCIONES (+): Cuando se ejecuta una acción, usa los valores asociados a esa acción
         //para lo que nos interese
@@ -156,9 +161,13 @@ public class ControlJugador : MonoBehaviour{
         if (other.gameObject.layer == LayerMask.NameToLayer("Mushrooms")){
             Debug.Log("<color=yellow>Has pasado por encima de un champiñón (Trigger detectado).");
             // Aquí podrías añadir lógica extra, como destruir el objeto o sumar puntos
-            // Destroy(other.gameObject); 
+            // Destroy(other.gameObject);
         }
     }
 
-
+    /// <summary>Aplica la sensibilidad del ratón en tiempo real (llamado desde opciones).</summary>
+    public void AplicarSensibilidad(float sliderVal)
+    {
+        sensibMouse = sliderVal * 0.1f;
+    }
 }

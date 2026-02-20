@@ -7,6 +7,8 @@ using UnityEngine;
  */
 public class GestorMusicaMenu : MonoBehaviour
 {
+    public static GestorMusicaMenu Instancia { get; private set; }
+
     [Header("Pistas de Música")]
     [Tooltip("Arrastra aquí las 7 pistas del pack (01 a 07).")]
     public AudioClip[] pistas;
@@ -18,12 +20,24 @@ public class GestorMusicaMenu : MonoBehaviour
     private AudioSource audioSource;
     private int ultimaPista = -1;
 
+    void Awake()
+    {
+        Instancia = this;
+    }
+
     void Start()
     {
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.loop = false;
-        audioSource.volume = volumen;
+        // Aplicar volumen guardado en opciones (0-100 → 0-1)
+        audioSource.volume = PlayerPrefs.GetFloat("VolumenMusica", 80f) / 100f;
         ReproducirSiguiente();
+    }
+
+    public void AplicarVolumen(float valor01)
+    {
+        if (audioSource != null)
+            audioSource.volume = valor01;
     }
 
     void Update()

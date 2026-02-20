@@ -25,7 +25,8 @@ public class GestorMusicaJuego : MonoBehaviour
         AudioSource src = gameObject.AddComponent<AudioSource>();
         src.clip = musicaGameplay;
         src.loop = true;
-        src.volume = volumen;
+        // Aplicar volumen guardado en opciones (0-100 → 0-1)
+        src.volume = PlayerPrefs.GetFloat("VolumenMusica", 80f) / 100f;
         src.Play();
     }
 }

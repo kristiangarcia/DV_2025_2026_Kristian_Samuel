@@ -131,7 +131,10 @@ public class ZombieKamikaze : MonoBehaviour
         if (clips == null || clips.Length == 0) return;
         AudioClip clip = clips[Random.Range(0, clips.Length)];
         if (clip != null)
-            AudioSource.PlayClipAtPoint(clip, transform.position);
+        {
+            float vol = PlayerPrefs.GetFloat("VolumenEfectos", 80f) / 100f;
+            AudioSource.PlayClipAtPoint(clip, transform.position, vol);
+        }
     }
 
     void Morir()

@@ -43,6 +43,8 @@ public class ControlOpciones : MonoBehaviour
         sliderMusica.onValueChanged.AddListener((v) => {
             PlayerPrefs.SetFloat("VolumenMusica", v);
             txtValorMusica.text = Mathf.RoundToInt(v).ToString() + "%";
+            // Aplicar en tiempo real a la música del menú
+            GestorMusicaMenu.Instancia?.AplicarVolumen(v / 100f);
         });
 
         // Volumen Efectos
@@ -63,6 +65,8 @@ public class ControlOpciones : MonoBehaviour
         sliderSensibilidad.onValueChanged.AddListener((v) => {
             PlayerPrefs.SetFloat("Sensibilidad", v);
             txtValorSensibilidad.text = v.ToString("F1");
+            // Aplicar en tiempo real al jugador (si existe en escena)
+            ControlJugador.Instancia?.AplicarSensibilidad(v);
         });
 
         // Pantalla Completa
