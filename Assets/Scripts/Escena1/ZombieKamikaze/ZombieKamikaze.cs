@@ -19,6 +19,8 @@ public class ZombieKamikaze : MonoBehaviour
     private NavMeshAgent agente;
     private Animator animator;
     private bool estaMuerto = false;
+    private float tiempoUltimoDestino = 0f;
+    private const float INTERVALO_DESTINO = 0.25f;
 
     // Para el efecto de fuego
     private Renderer[] renderers;
@@ -67,13 +69,23 @@ public class ZombieKamikaze : MonoBehaviour
 
         if (objetivo != null && agente != null && agente.isOnNavMesh)
         {
-            agente.SetDestination(objetivo.position);
+            if (Time.time >= tiempoUltimoDestino + INTERVALO_DESTINO)
+            {
+                agente.SetDestination(objetivo.position);
+                tiempoUltimoDestino = Time.time;
+            }
 
             if (animator != null)
             {
-                float velocidad = agente.velocity.magnitude;
+                float velocidad = (agente.hasPath && !agente.pathPending)
+                    ? agente.velocity.magnitude
+                    : 0f;
                 animator.SetFloat("Velocidad", velocidad);
             }
+        }
+        else if (animator != null)
+        {
+            animator.SetFloat("Velocidad", 0f);
         }
 
         // Efecto de parpadeo de fuego en tiempo real

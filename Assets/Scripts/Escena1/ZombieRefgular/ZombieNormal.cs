@@ -21,6 +21,8 @@ public class ZombieNormal : MonoBehaviour
     private Animator animator;
     private float tiempoUltimoAtaque;
     private bool estaMuerto = false;
+    private float tiempoUltimoDestino = 0f;
+    private const float INTERVALO_DESTINO = 0.25f; // Actualizar ruta 4 veces/segundo
 
     // Para el efecto de sangre en el material
     private Renderer[] renderers;
@@ -60,17 +62,25 @@ public class ZombieNormal : MonoBehaviour
 
         if (objetivo != null && agente != null && agente.isOnNavMesh)
         {
-            float distancia = Vector3.Distance(transform.position, objetivo.position);
+            // Actualizar destino solo cada INTERVALO_DESTINO segundos para no saturar NavMesh
+            if (Time.time >= tiempoUltimoDestino + INTERVALO_DESTINO)
+            {
+                agente.SetDestination(objetivo.position);
+                tiempoUltimoDestino = Time.time;
+            }
 
-            // Perseguir al jugador siempre
-            agente.SetDestination(objetivo.position);
-
-            // Velocidad actual para animaciones walk/run
+            // Animación: mostrar idle si el path todavía se está calculando
             if (animator != null)
             {
-                float velocidad = agente.velocity.magnitude;
+                float velocidad = (agente.hasPath && !agente.pathPending)
+                    ? agente.velocity.magnitude
+                    : 0f;
                 animator.SetFloat("Velocidad", velocidad);
             }
+        }
+        else if (animator != null)
+        {
+            animator.SetFloat("Velocidad", 0f);
         }
     }
 
